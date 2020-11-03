@@ -6,6 +6,8 @@
 
 from typing import NamedTuple, List
 import numpy as np
+import scipy.stats
+import matplotlib.pyplot as plt
 
 
 class MotionStateInput(NamedTuple):
@@ -158,7 +160,81 @@ class AccumulatedRiskInPredictionHorizon:
         return unconditional_probability_this_time_step * consequence_this_time_step
 
 
+'''
+components: 
+- ME
+- HSG
+- DG1
+- DG2
+
+Operation modes: 
+- PTO: ME-> propulsion
+- MECH: ME -> propulsion, hotel
+- PTI: HSG -> propulsion, hotel
+
+LOPP-scenarios:
+- In PTO: 
+    1) ME
+- Int MEC:
+    2) ME
+- In PTI: 
+    3) DG1, DG2
+    4) HSG
+    
+Recovery scenarios: 
+- From 1)
+    a) restart ME
+    b) start DG1, start HSG as motor
+    c) start DG2, start HSG as motor
+- From 2) 
+    a) restart ME
+    b) start HSG as motor
+
+'''
+
+
+
+class StartUpEventParameters(NamedTuple):
+    mean_time_to_restart_s: float
+    standard_deviation_time_to_restart: float
+    time_shift_time_to_restart: float
+    nominal_success_probability: float
+
+class StartUpEvent:
+    def __init__(self, parameters: StartUpEventParameters, time_available):
+        self.mu = parameters.mean_time_to_restart_s
+        self.sigma = parameters.standard_deviation_time_to_restart
+        self.startup_time_distribution = scipy.stats.lognorm(
+            scale=parameters.mean_time_to_restart_s,
+            s=np.sqrt(parameters.standard_deviation_time_to_restart),
+            loc=parameters.time_shift_time_to_restart,
+        )
+        self.probability = parameters.nominal_success_probability \
+                           * self.startup_time_distribution.cdf(time_available)
+
+
+class StartupEventSequence:
+    ''' Assumes that all restart events are independent of each other
+    '''
+    def __init__(self, list_of_restart_events: List[StartUpEvent]):
+        list_of_restoration_probabilities = []
+        for event in list_of_restart_events:
+            list_of_restoration_probabilities.append(event.probability)
+        self.probability_of_restoration_sequence = np.prod(list_of_restoration_probabilities)
+
+
+
+class PowerRestorationScenarios:
+    def __init__(self, startup_event_sequences: List[StartupEventSequence]):
+        probability_of_no_success = 1
+        for sequence in startup_event_sequences:
+            probability_of_no_success = probability_of_no_success * (1 - sequence.probability_of_restoration_sequence)
+        self.probability_of_power_restoration = 1 - probability_of_no_success
+
+
 if __name__ == '__main__':
     pass
+
+
 
 
