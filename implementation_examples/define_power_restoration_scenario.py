@@ -55,9 +55,9 @@ restore_power_from_genset_1_sequence = risk_model.StartupEventSequence([start_di
 restore_power_from_genset_2_sequence = risk_model.StartupEventSequence([start_diesel_generator_2_event,
                                                                         start_hsg_as_motor_event])
 
-power_restoration_scenairo = risk_model.PowerRestorationScenarios([restore_power_from_main_engine_sequence,
-                                                                   restore_power_from_genset_1_sequence,
-                                                                   restore_power_from_genset_2_sequence])
+power_restoration_scenairo = risk_model.PowerRestorationScenario([restore_power_from_main_engine_sequence,
+                                                                  restore_power_from_genset_1_sequence,
+                                                                  restore_power_from_genset_2_sequence])
 
 print('Prob of restarting ME: ' + str(restart_main_engine_event.probability))
 print('Prob of starting genset 1 / 2: ' + str(start_diesel_generator_1_event.probability))

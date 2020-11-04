@@ -200,6 +200,7 @@ class StartUpEventParameters(NamedTuple):
     time_shift_time_to_restart: float
     nominal_success_probability: float
 
+
 class StartUpEvent:
     def __init__(self, parameters: StartUpEventParameters, time_available):
         self.mu = parameters.mean_time_to_restart_s
@@ -223,13 +224,35 @@ class StartupEventSequence:
         self.probability_of_restoration_sequence = np.prod(list_of_restoration_probabilities)
 
 
-
-class PowerRestorationScenarios:
+class PowerRestorationScenario:
     def __init__(self, startup_event_sequences: List[StartupEventSequence]):
         probability_of_no_success = 1
         for sequence in startup_event_sequences:
             probability_of_no_success = probability_of_no_success * (1 - sequence.probability_of_restoration_sequence)
         self.probability_of_power_restoration = 1 - probability_of_no_success
+
+
+class TriggeringEvent:
+    def __init__(self, rate_of_occurrence, time_interval):
+        self.rate = rate_of_occurrence
+        self.dt = time_interval
+        self.probability = self.probability_of_occurrence()
+
+    def probability_of_occurrence(self):
+        return 1 - np.exp(-self.rate * self.dt)
+        
+class LossOfPropulsionScenarios:
+    ''' A LOPP-scenario is described as a minimial cutset of triggering events.
+    '''
+    def __init__(self, triggering_events: List[TriggeringEvent]):
+        list_of_triggering_event_probabilities = []
+        for event in triggering_events:
+            list_of_triggering_event_probabilities.append(event.probability)
+        self.probability_of_scenario = np.prod(list_of_triggering_event_probabilities)
+
+class MachinerySystemOperatingMode:
+    def __init__(self, possible_loss_of_propulsion_power_scenairos: List[LossOfPropulsionScenarios]):
+        self.lopp_scenairos = possible_loss_of_propulsion_power_scenairos
 
 
 if __name__ == '__main__':
