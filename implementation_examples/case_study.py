@@ -1,155 +1,63 @@
-''' In this case study we use the classes provided in risk_model.py to define a set of LOPP-scenarios
-    and power restoration scenarios for a mahinery system that can be operated in three different
-    modes.
+import case_study_ship_setup as case
+import matplotlib.pyplot as plt
 
-    The purpose in the case study is to determine the probability of grounding during the next hour
-    of sailing in a sailing situation where it would take the ship 60 seconds to ground given loss
-    of propulsion power anywhere along the route for the next hour (assume that the ship is sailing
-    with constant distance from a straight shore line in constant wind and current conditions).
-'''
-
-import risk_model
-
-# Triggering events
-main_engine_stops = risk_model.TriggeringEvent(rate_of_occurrence=8e-9, time_interval=3600)
-genset_one_stops = risk_model.TriggeringEvent(rate_of_occurrence=14e-9, time_interval=3600)
-genset_two_stops = risk_model.TriggeringEvent(rate_of_occurrence=14e-9, time_interval=3600)
-shaft_gen_stops = risk_model.TriggeringEvent(rate_of_occurrence=6e-9, time_interval=3600)
-
-# LOPP-scenairos
-loss_of_main_engine = risk_model.LossOfPropulsionScenario([main_engine_stops])
-loss_of_both_gensets = risk_model.LossOfPropulsionScenario([genset_one_stops, genset_two_stops])
-loss_of_shaft_gen = risk_model.LossOfPropulsionScenario([shaft_gen_stops])
-
-# Power restoration startup events
-start_main_engine_params = risk_model.StartUpEventParameters(
-    mean_time_to_restart_s=40,
-    standard_deviation_time_to_restart=1.2,
-    time_shift_time_to_restart=20,
-    nominal_success_probability=1
-)
-start_main_engine = risk_model.StartUpEvent(parameters=start_main_engine_params, time_available=60)
-
-restart_main_engine_params = risk_model.StartUpEventParameters(
-    mean_time_to_restart_s=40,
-    standard_deviation_time_to_restart=1.2,
-    time_shift_time_to_restart=20,
-    nominal_success_probability=0.4
-)
-restart_main_engine = risk_model.StartUpEvent(parameters=restart_main_engine_params, time_available=60)
-
-start_genset_one_params = risk_model.StartUpEventParameters(
-    mean_time_to_restart_s=30,
-    standard_deviation_time_to_restart=1.0,
-    time_shift_time_to_restart=13,
-    nominal_success_probability=1
-)
-start_genset_one = risk_model.StartUpEvent(parameters=start_genset_one_params, time_available=60)
-start_genset_two = risk_model.StartUpEvent(parameters=start_genset_one_params, time_available=60)
-
-restart_genset_one_params = risk_model.StartUpEventParameters(
-    mean_time_to_restart_s=30,
-    standard_deviation_time_to_restart=1.0,
-    time_shift_time_to_restart=13,
-    nominal_success_probability=0.4
-)
-restart_genset_one = risk_model.StartUpEvent(parameters=restart_genset_one_params, time_available=60)
-restart_genset_two = risk_model.StartUpEvent(parameters=restart_genset_one_params, time_available=60)
-
-start_hsg_as_motor_params = risk_model.StartUpEventParameters(
-    mean_time_to_restart_s=8,
-    standard_deviation_time_to_restart=1,
-    time_shift_time_to_restart=3,
-    nominal_success_probability=1
-)
-start_hsg_as_motor = risk_model.StartUpEvent(parameters=start_hsg_as_motor_params, time_available=60)
-
-restart_hsg_as_motor_params = risk_model.StartUpEventParameters(
-    mean_time_to_restart_s=8,
-    standard_deviation_time_to_restart=1,
-    time_shift_time_to_restart=3,
-    nominal_success_probability=0.8
-)
-restart_hsg_as_motor = risk_model.StartUpEvent(parameters=restart_hsg_as_motor_params, time_available=60)
-
-# Power restoration sequences
-propulsion_power_by_starting_main_engine = risk_model.StartupEventSequence(
-    list_of_startup_events=[start_main_engine]
-)
-propulsion_power_by_restarting_main_engine = risk_model.StartupEventSequence(
-    list_of_startup_events=[restart_main_engine]
-)
-propulsion_power_by_starting_genset_one_and_hsg = risk_model.StartupEventSequence(
-    list_of_startup_events=[start_genset_one, start_hsg_as_motor]
-)
-propulsion_power_by_starting_genset_two_and_hsg = risk_model.StartupEventSequence(
-    list_of_startup_events=[start_genset_two, start_hsg_as_motor]
-)
-propulsion_power_by_restarting_genset_one = risk_model.StartupEventSequence(
-    list_of_startup_events=[restart_genset_one]
-)
-propulsion_power_by_restarting_genset_two = risk_model.StartupEventSequence(
-    list_of_startup_events=[restart_genset_two]
-)
-propulsion_power_by_starting_hsg_as_motor = risk_model.StartupEventSequence(
-    list_of_startup_events=[start_hsg_as_motor]
-)
-propulsion_power_by_restarting_hsg_as_motor = risk_model.StartupEventSequence(
-    list_of_startup_events=[restart_hsg_as_motor]
+params = case.CaseStudySystemParameters(
+    main_engine_failure_rate=3e-9,
+    genset_one_failure_rate=6e-9,
+    genset_two_failure_rate=6e-9,
+    hsg_failure_rate=2e-9,
+    main_engine_mean_start_time=50,
+    main_engine_start_time_std=1.2,
+    main_engine_start_time_shift=20,
+    main_engine_nominal_start_prob=1,
+    main_engine_mean_restart_time=50,
+    main_engine_restart_time_std=1.2,
+    main_engine_restart_time_shift=20,
+    main_engine_nominal_restart_prob=0.4,
+    genset_one_mean_start_time=35,
+    genset_one_start_time_std=1.0,
+    genset_one_start_time_shift=14,
+    genset_one_nominal_start_prob=1,
+    genset_two_mean_start_time=35,
+    genset_two_start_time_std=1.0,
+    genset_two_start_time_shift=14,
+    genset_two_nominal_start_prob=1,
+    genset_one_mean_restart_time=35,
+    genset_one_restart_time_std=1.0,
+    genset_one_restart_time_shift=14,
+    genset_one_nominal_restart_prob=0.5,
+    genset_two_mean_restart_time=35,
+    genset_two_restart_time_std=1.0,
+    genset_two_restart_time_shift=14,
+    genset_two_nominal_restart_prob=0.5,
+    hsg_mean_start_time=12,
+    hsg_start_time_std=1,
+    hsg_start_time_shift=3,
+    hsg_nominal_start_prob=1,
+    hsg_mean_restart_time=12,
+    hsg_restart_time_std=1,
+    hsg_restart_time_shift=3,
+    hsg_nominal_restart_prob=0.8,
 )
 
-# Power restoration event trees
-restore_from_loss_of_main_engine_in_pto = risk_model.PowerRestorationEventTree(
-    startup_event_sequences=[
-        propulsion_power_by_restarting_main_engine,
-        propulsion_power_by_starting_genset_one_and_hsg,
-        propulsion_power_by_starting_genset_two_and_hsg
-    ]
-)
-restore_from_loss_of_main_engine_in_mec = risk_model.PowerRestorationEventTree(
-    startup_event_sequences=[
-        propulsion_power_by_restarting_main_engine,
-        propulsion_power_by_starting_hsg_as_motor,
-        propulsion_power_by_starting_genset_two_and_hsg
-    ]
-)
-restore_from_loss_of_both_gensets_in_pti = risk_model.PowerRestorationEventTree(
-    startup_event_sequences=[
-        propulsion_power_by_starting_main_engine,
-        propulsion_power_by_restarting_genset_one,
-        propulsion_power_by_restarting_genset_two
-    ]
-)
-restore_from_loss_of_hsg_in_pti = risk_model.PowerRestorationEventTree(
-    startup_event_sequences=[
-        propulsion_power_by_restarting_hsg_as_motor
-    ]
-)
+case_study_system = case.case_study_system_setup(system_params=params, time_interval=60, available_time=4)
 
-# Construct complete scenarios
-loss_of_main_engine_in_pto = risk_model.Scenario(
-    loss_scenario=loss_of_main_engine,
-    restoration_scenario=restore_from_loss_of_main_engine_in_pto
-)
-loss_of_main_engine_in_mec = risk_model.Scenario(
-    loss_scenario=loss_of_main_engine,
-    restoration_scenario=restore_from_loss_of_main_engine_in_mec
-)
-loss_of_both_gensets_in_pti = risk_model.Scenario(
-    loss_scenario=loss_of_both_gensets,
-    restoration_scenario=restore_from_loss_of_both_gensets_in_pti
-)
-loss_of_hsg_in_pti = risk_model.Scenario(
-    loss_scenario=loss_of_shaft_gen,
-    restoration_scenario=restore_from_loss_of_hsg_in_pti
-)
+pto_risk = []
+mec_risk = []
+pti_risk = []
+times = range(0, 120)
+for t in times:
+    case_study_system.pto_mode_scenarios.update_probability(time_interval=60, available_time=t)
+    case_study_system.mec_mode_scenarios.update_probability(time_interval=60, available_time=t)
+    case_study_system.pti_mode_scenarios.update_probability(time_interval=60, available_time=t)
+    pto_risk.append(case_study_system.pto_mode_scenarios.probability_of_grounding)
+    mec_risk.append(case_study_system.mec_mode_scenarios.probability_of_grounding)
+    pti_risk.append(case_study_system.pti_mode_scenarios.probability_of_grounding)
 
-# Construct mode cases
-pto_mode = risk_model.MachinerySystemOperatingMode(possible_scenarios=[loss_of_main_engine_in_pto])
-mec_mode = risk_model.MachinerySystemOperatingMode(possible_scenarios=[loss_of_main_engine_in_mec])
-pti_mode = risk_model.MachinerySystemOperatingMode(possible_scenarios=[loss_of_both_gensets_in_pti,
-                                                                       loss_of_hsg_in_pti])
-
-print('Prob of grounding if PTO is selected: ' + str(pto_mode.probability_of_grounding))
-print('Prob of grounding if MEC is selected: ' + str(mec_mode.probability_of_grounding))
-print('Prob of grounding if PTI is selected: ' + str(pti_mode.probability_of_grounding))
+plt.plot(times, pto_risk, label='PTO')
+plt.plot(times, mec_risk, label='MEC')
+plt.plot(times, pti_risk, label='PTI')
+plt.xlabel('Available restoration time in the event of loss of propulsion')
+plt.ylabel('$P_G$')
+plt.legend()
+plt.show()

@@ -84,6 +84,15 @@ class TimeToGroundingSimulator:
         consequence_of_grounding = self.speed ** 2 * 100
         return time_to_grounding, consequence_of_grounding
 
+    def check_if_grounded(self):
+        '''
+        mso_modes = MSO(environment.shallower_than_6m.polygons)
+        for polygon in polygons:
+            if polygon.contains(x, y):
+                return grounded
+        '''
+        pass
+
 
 class AccumulatedRiskInPredictionHorizon:
     ''' Find the probability of an event occurring during a prediction horizon (consisting
