@@ -49,7 +49,7 @@ class CaseStudySystemParameters(NamedTuple):
 
 
 def case_study_system_setup(system_params: CaseStudySystemParameters,
-                            time_interval: float,
+                            time_interval=60,
                             available_time=60):
     main_engine_stops = scenarios.TriggeringEvent(rate_of_occurrence=system_params.main_engine_failure_rate,
                                                   time_interval=time_interval)
