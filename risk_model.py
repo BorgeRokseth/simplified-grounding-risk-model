@@ -6,13 +6,13 @@
 from typing import NamedTuple, List
 
 import scenarios
-from ship_in_transit_simulator.models import SimulationConfiguration, \
+from ship_in_transit_simulator.models import DriftSimulationConfiguration, \
     EnvironmentConfiguration, ShipModelWithoutPropulsion, ShipConfiguration
 
 
 class ENC:  # Temporary class (placeholder for real ENC-class)
     def __init__(self):
-        self.x = 200  #
+        self.x = 200
 
 
 class MotionStateInput(NamedTuple):
@@ -84,7 +84,7 @@ class RiskModelOutput(NamedTuple):
 class GroundingRiskModel:
     def __init__(self, risk_model_config: RiskModelConfiguration,
                  ttg_sim_config: ShipConfiguration,
-                 sim_config: SimulationConfiguration,
+                 sim_config: DriftSimulationConfiguration,
                  env_config: EnvironmentConfiguration,
                  environment: ENC,
                  scenario_params: ScenarioAnalysisParameters):
@@ -101,34 +101,18 @@ class GroundingRiskModel:
                                                sim_config.initial_forward_speed_m_per_s,
                                                sim_config.initial_sideways_speed_m_per_s,
                                                sim_config.initial_yaw_rate_rad_per_s)
+
+        self.ttg_simulator = TimeToGroundingSimulator(max_simulation_time=self.max_simulation_time,
+                                                      ship_config=self.ship_config,
+                                                      simulation_config=self.sim_config,
+                                                      environment_config=self.env_config,
+                                                      environment=self.environment,
+                                                      initial_states=self.initial_states)
         self.risk_model_output = self.calculate_risk_output()
 
     def calculate_risk_output(self):
-        ''' Calculate the probability and consequence (cost) of grounding during a small time interval
-            'delta_t' where the ship is in the states given by 'current_motion_states'.
-
-            The method is currently implemented as temporary mock-up
-
-            args:
-            - current_motion_states (MotionStateInput): See MotionStateInput-class
-            - delta_t (float): The duration of the small time interval
-
-            returns:
-            - probability_of_grounding (float): The probability of grounding during the time interval
-            - consequence_of_grounding (float): The cost of grounding during the time interval
-        '''
-        # Probability (and consequence) of grounding given the loss of propulsion power
-        self.ttg_simulator = TimeToGroundingSimulator(max_simulation_time=self.max_simulation_time,
-                                                 ship_config=self.ship_config,
-                                                 simulation_config=self.sim_config,
-                                                 environment_config=self.env_config,
-                                                 environment=self.environment,
-                                                 initial_states=self.initial_states
-                                                 )
         time_to_grounding, consequence_of_grounding = self.ttg_simulator.time_to_grounding()
-
         scenario_analysis_output = self.scenario_analysis(available_recovery_time=time_to_grounding)
-
         return RiskModelOutput(
             probability_of_grounding_in_pto=scenario_analysis_output.pto_mode_scenarios.probability_of_grounding,
             probability_of_grounding_in_mec=scenario_analysis_output.mec_mode_scenarios.probability_of_grounding,
@@ -303,7 +287,7 @@ class TimeToGroundingSimulator:
                  environment: ENC,
                  max_simulation_time: float,
                  ship_config: ShipConfiguration,
-                 simulation_config: SimulationConfiguration,
+                 simulation_config: DriftSimulationConfiguration,
                  environment_config: EnvironmentConfiguration):
         ''' Set up simulation.
 
@@ -353,7 +337,7 @@ class TimeToGroundingSimulator:
 
     @staticmethod
     def check_if_grounded(x, y):
-        if abs(x) >= 500 or abs(y) >= 500:
+        if abs(x) >= 200 or abs(y) >= 200:
             return True
         else:
             return False
@@ -386,6 +370,7 @@ class AccumulatedRiskInPredictionHorizon:
 
         for cond_prob, consequence in zip(conditional_probabilities_for_each_time_interval,
                                           consequence_of_accident_for_each_time_step):
+            print(self.accumulated_probability)
             self.unconditional_probability_for_each_time_interval.append(
                 self.unconditional_probability_at_time_step(
                     conditional_probability_this_time_step=cond_prob,
@@ -403,7 +388,6 @@ class AccumulatedRiskInPredictionHorizon:
             self.update_risk()
             self.accumulated_probability_after_each_time_interval.append(self.accumulated_probability)
             self.accumulated_risk_after_each_time_interval.append(self.accumulated_risk)
-        pass
 
     def update_probability_that_accident_occurred(self):
         self.accumulated_probability = sum(self.unconditional_probability_for_each_time_interval)

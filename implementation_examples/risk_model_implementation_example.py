@@ -2,11 +2,13 @@ import risk_model
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from ship_in_transit_simulator.models import DriftSimulationConfiguration, \
+    EnvironmentConfiguration, ShipConfiguration
 
-max_sim_time = 250
+max_sim_time =400
 time_interval = 120
 placeholder_environment = risk_model.ENC()
-ship_config = risk_model.ShipConfiguration(
+ship_config = ShipConfiguration(
     coefficient_of_deadweight_to_displacement=0.7,
     bunkers=200000,
     ballast=200000,
@@ -61,22 +63,19 @@ scenario_analysis_parameters = risk_model.ScenarioAnalysisParameters(
     hsg_restart_time_shift=3,
     hsg_nominal_restart_prob=0.8,
 )
-env_forces_setup = risk_model.EnvironmentConfiguration(
+env_forces_setup = EnvironmentConfiguration(
     current_velocity_component_from_north=0,
     current_velocity_component_from_east=1,
     wind_speed=5,
     wind_direction=0
 )
-simulation_setup = risk_model.SimulationConfiguration(
-    route_name='none',
+simulation_setup = DriftSimulationConfiguration(
     initial_north_position_m=0,
     initial_east_position_m=0,
     initial_yaw_angle_rad=45 * np.pi / 180,
     initial_forward_speed_m_per_s=7,
     initial_sideways_speed_m_per_s=0,
     initial_yaw_rate_rad_per_s=0,
-    initial_propeller_shaft_speed_rad_per_s=400 * np.pi / 30,
-    machinery_system_operating_mode=1,
     integration_step=0.5,
     simulation_time=400
 )
