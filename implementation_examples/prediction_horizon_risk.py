@@ -2,7 +2,8 @@ from risk_model import GroundingRiskModel, AccumulatedRiskInPredictionHorizon,\
     RiskModelConfiguration, MotionStateInput
 
 risk_model_configuration = RiskModelConfiguration(
-    max_drift_time_s=1000
+    max_drift_time_s=1000,
+    risk_time_interval=0.5
 )
 grounding_risk_model = GroundingRiskModel(risk_model_configuration)
 
@@ -27,7 +28,7 @@ for time_instance in [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]:
         yaw_rate=r
     )
 
-    probability, consequence = grounding_risk_model.risk(current_motion_states=motion_states, delta_t=0.5)
+    probability, consequence = grounding_risk_model.calculate_risk_output(current_motion_states=motion_states, delta_t=0.5)
     probability_each_time_interval.append(probability)
     consequence_each_time_interval.append(consequence)
     conditional_risk.append(probability * consequence)

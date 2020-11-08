@@ -3,51 +3,6 @@ from typing import NamedTuple
 import matplotlib.pyplot as plt
 
 
-class CaseStudySystemSetupOutput(NamedTuple):
-    pto_mode_scenarios: scenarios.MachinerySystemOperatingMode
-    mec_mode_scenarios: scenarios.MachinerySystemOperatingMode
-    pti_mode_scenarios: scenarios.MachinerySystemOperatingMode
-
-
-class CaseStudySystemParameters(NamedTuple):
-    main_engine_failure_rate: float
-    main_engine_mean_start_time: float
-    main_engine_start_time_std: float
-    main_engine_start_time_shift: float
-    main_engine_nominal_start_prob: float
-    main_engine_mean_restart_time: float
-    main_engine_restart_time_std: float
-    main_engine_restart_time_shift: float
-    main_engine_nominal_restart_prob: float
-    genset_one_failure_rate: float
-    genset_one_mean_start_time: float
-    genset_one_start_time_std: float
-    genset_one_start_time_shift: float
-    genset_one_nominal_start_prob: float
-    genset_one_mean_restart_time: float
-    genset_one_restart_time_std: float
-    genset_one_restart_time_shift: float
-    genset_one_nominal_restart_prob: float
-    genset_two_failure_rate: float
-    genset_two_mean_start_time: float
-    genset_two_start_time_std: float
-    genset_two_start_time_shift: float
-    genset_two_nominal_start_prob: float
-    genset_two_mean_restart_time: float
-    genset_two_restart_time_std: float
-    genset_two_restart_time_shift: float
-    genset_two_nominal_restart_prob: float
-    hsg_failure_rate: float
-    hsg_mean_start_time: float
-    hsg_start_time_std: float
-    hsg_start_time_shift: float
-    hsg_nominal_start_prob: float
-    hsg_mean_restart_time: float
-    hsg_restart_time_std: float
-    hsg_restart_time_shift: float
-    hsg_nominal_restart_prob: float
-
-
 def case_study_system_setup(system_params: CaseStudySystemParameters,
                             time_interval=60,
                             available_time=60):

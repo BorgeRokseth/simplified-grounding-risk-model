@@ -1,3 +1,4 @@
 .pytest_cache/
 venv/
 .idea/
+ship_in_transit_simulator/
