@@ -29,6 +29,7 @@ class StartUpEvent:
     def update_probability(self, time):
         self.probability = self.probability_calculation(time)
 
+
 class StartupEventSequence:
     ''' Assumes that all restart events are independent of each other
     '''
@@ -70,7 +71,6 @@ class PowerRestorationEventTree:
     def update_probability(self, new_available_time):
         self.update_startup_sequences(new_available_time)
         self.probability = self.probability_calculation()
-
 
 
 class TriggeringEvent:
