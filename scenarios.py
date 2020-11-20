@@ -82,6 +82,7 @@ class TriggeringEvent:
     def probability_of_occurrence(self):
         return 1 - np.exp(-self.rate * self.dt)
 
+
 class LossOfPropulsionScenario:
     ''' A LOPP-scenario is described as a minimial cutset of triggering events.
     '''
