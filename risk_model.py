@@ -1,8 +1,9 @@
 """
     Provides classes to estimate drifting grounding risk either for a small time interval or a
-    prediction horizon (a set of adjoining small time intervals.
+    prediction horizon (a set of adjoining small time intervals).
 """
 
+from tkinter import E
 from typing import NamedTuple, List
 
 import scenarios
@@ -202,55 +203,60 @@ class GroundingRiskModel:
         restart_hsg_as_motor = scenarios.StartUpEvent(parameters=restart_hsg_as_motor_params,
                                                       time_available=available_recovery_time)
 
-        propulsion_power_by_starting_main_engine = scenarios.StartupEventSequence(
-            list_of_startup_events=[start_main_engine]
-        )
-        propulsion_power_by_restarting_main_engine = scenarios.StartupEventSequence(
-            list_of_startup_events=[restart_main_engine]
-        )
-        propulsion_power_by_starting_genset_one_and_hsg = scenarios.StartupEventSequence(
-            list_of_startup_events=[start_genset_one, start_hsg_as_motor]
-        )
-        propulsion_power_by_starting_genset_two_and_hsg = scenarios.StartupEventSequence(
-            list_of_startup_events=[start_genset_two, start_hsg_as_motor]
-        )
-        propulsion_power_by_restarting_genset_one = scenarios.StartupEventSequence(
-            list_of_startup_events=[restart_genset_one]
-        )
-        propulsion_power_by_restarting_genset_two = scenarios.StartupEventSequence(
-            list_of_startup_events=[restart_genset_two]
-        )
-        propulsion_power_by_starting_hsg_as_motor = scenarios.StartupEventSequence(
-            list_of_startup_events=[start_hsg_as_motor]
-        )
-        propulsion_power_by_restarting_hsg_as_motor = scenarios.StartupEventSequence(
-            list_of_startup_events=[restart_hsg_as_motor]
-        )
-
         restore_from_loss_of_main_engine_in_pto = scenarios.PowerRestorationEventTree(
-            startup_event_sequences=[
-                propulsion_power_by_restarting_main_engine,
-                propulsion_power_by_starting_genset_one_and_hsg,
-                propulsion_power_by_starting_genset_two_and_hsg
+            success_paths=[
+                scenarios.EventTreePath(path=[
+                    scenarios.PathElement(event=restart_main_engine, occurs=True),
+                ]),
+                scenarios.EventTreePath(path=[
+                    scenarios.PathElement(event=restart_main_engine, occurs=False),
+                    scenarios.PathElement(event=start_genset_one, occurs=True),
+                    scenarios.PathElement(event=start_hsg_as_motor, occurs=True),
+                ]),
+                scenarios.EventTreePath(path=[
+                    scenarios.PathElement(event=restart_main_engine, occurs=False),
+                    scenarios.PathElement(event=start_genset_one, occurs=False),
+                    scenarios.PathElement(event=start_genset_two, occurs=True),
+                    scenarios.PathElement(event=start_hsg_as_motor, occurs=True),
+                ])
             ]
         )
         restore_from_loss_of_main_engine_in_mec = scenarios.PowerRestorationEventTree(
-            startup_event_sequences=[
-                propulsion_power_by_restarting_main_engine,
-                propulsion_power_by_starting_hsg_as_motor,
-                propulsion_power_by_starting_genset_two_and_hsg
+            success_paths=[
+                scenarios.EventTreePath(path=[
+                    scenarios.PathElement(event=restart_main_engine, occurs=True),
+                ]),
+                scenarios.EventTreePath(path=[
+                    scenarios.PathElement(event=restart_main_engine, occurs=False),
+                    scenarios.PathElement(event=start_hsg_as_motor, occurs=True),
+                ])
             ]
         )
         restore_from_loss_of_both_gensets_in_pti = scenarios.PowerRestorationEventTree(
-            startup_event_sequences=[
-                propulsion_power_by_starting_main_engine,
-                propulsion_power_by_restarting_genset_one,
-                propulsion_power_by_restarting_genset_two
+            success_paths=[
+                scenarios.EventTreePath(path=[
+                    scenarios.PathElement(event=start_main_engine, occurs=True),
+                ]),
+                scenarios.EventTreePath(path=[
+                    scenarios.PathElement(event=start_main_engine, occurs=False),
+                    scenarios.PathElement(event=restart_genset_one, occurs=True),
+                ]),
+                scenarios.EventTreePath(path=[
+                    scenarios.PathElement(event=start_main_engine, occurs=False),
+                    scenarios.PathElement(event=restart_genset_one, occurs=False),
+                    scenarios.PathElement(event=restart_genset_one, occurs=True),
+                ])
             ]
         )
         restore_from_loss_of_hsg_in_pti = scenarios.PowerRestorationEventTree(
-            startup_event_sequences=[
-                propulsion_power_by_restarting_hsg_as_motor
+            success_paths=[
+                scenarios.EventTreePath(path=[
+                    scenarios.PathElement(event=start_main_engine, occurs=True),
+                ]),
+                scenarios.EventTreePath(path=[
+                    scenarios.PathElement(event=start_main_engine, occurs=False),
+                    scenarios.PathElement(event=restart_hsg_as_motor, occurs=True),
+                ])
             ]
         )
 

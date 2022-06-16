@@ -1,16 +1,13 @@
-import risk_model
+import risk_model as risk_model
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from ship_in_transit_simulator.models import DriftSimulationConfiguration, \
     EnvironmentConfiguration, ShipConfiguration
 
-max_sim_time = 250
-time_step = 24 * 3600
-n = 10
-time_intervals = np.arange(start=0, stop=n * time_step, step=time_step)
-
+max_sim_time =400
+time_interval = 120
 placeholder_environment = risk_model.ENC()
-
 ship_config = ShipConfiguration(
     coefficient_of_deadweight_to_displacement=0.7,
     bunkers=200000,
@@ -72,62 +69,31 @@ env_forces_setup = EnvironmentConfiguration(
     wind_speed=5,
     wind_direction=0
 )
-
+simulation_setup = DriftSimulationConfiguration(
+    initial_north_position_m=0,
+    initial_east_position_m=0,
+    initial_yaw_angle_rad=45 * np.pi / 180,
+    initial_forward_speed_m_per_s=7,
+    initial_sideways_speed_m_per_s=0,
+    initial_yaw_rate_rad_per_s=0,
+    integration_step=0.5,
+    simulation_time=400
+)
 risk_configuration = risk_model.RiskModelConfiguration(
     max_drift_time_s=max_sim_time,
-    risk_time_interval=time_step
+    risk_time_interval=time_interval
 )
+risk_model = risk_model.GroundingRiskModel(risk_model_config=risk_configuration,
+                                           env_config=env_forces_setup,
+                                           environment=placeholder_environment,
+                                           scenario_params=scenario_analysis_parameters,
+                                           sim_config=simulation_setup,
+                                           ttg_sim_config=ship_config)
 
-probability_each_time_interval = []
-consequence_each_time_interval = []
-conditional_risk = []
-risk_mod = []
+results = pd.DataFrame().from_dict(risk_model.ttg_simulator.ship_model.simulation_results)
+results.plot()
 
-for time_instance in time_intervals:  # prediction horizon
-    # Update motion states
-    n = 0
-    e = 0
-    psi = 0
-    u = 7
-    v = 0
-    r = 0
-
-    simulation_setup = DriftSimulationConfiguration(
-        initial_north_position_m=n,
-        initial_east_position_m=e,
-        initial_yaw_angle_rad=psi,
-        initial_forward_speed_m_per_s=u,
-        initial_sideways_speed_m_per_s=v,
-        initial_yaw_rate_rad_per_s=r,
-        integration_step=0.5,
-        simulation_time=4000
-    )
-
-    risk_mod.append(risk_model.GroundingRiskModel(risk_model_config=risk_configuration,
-                                                  env_config=env_forces_setup,
-                                                  environment=placeholder_environment,
-                                                  scenario_params=scenario_analysis_parameters,
-                                                  sim_config=simulation_setup,
-                                                  ttg_sim_config=ship_config))
-
-    probability_each_time_interval.append(risk_mod[-1].risk_model_output.probability_of_grounding_in_pto)
-    consequence_each_time_interval.append(risk_mod[-1].risk_model_output.consequence_of_grounding)
-    conditional_risk.append(risk_mod[-1].risk_model_output.probability_of_grounding_in_pto
-                            * risk_mod[-1].risk_model_output.consequence_of_grounding)
-
-risk_over_prediction_horizon = risk_model.AccumulatedRiskInPredictionHorizon(
-    conditional_probabilities_for_each_time_interval=probability_each_time_interval,
-    consequence_of_accident_for_each_time_step=consequence_each_time_interval
-)
-
-fig, (ax1, ax2) = plt.subplots(2, 1)
-
-ax1.step(time_intervals, probability_each_time_interval, label='P(g|not grounded already)')
-ax1.step(time_intervals,
-         risk_over_prediction_horizon.unconditional_probability_for_each_time_interval,
-         label='p(g)')
-ax2.step(time_intervals, risk_over_prediction_horizon.accumulated_probability_after_each_time_interval,
-         label='P(grounded already)')
-ax1.legend()
-ax2.legend()
+print(risk_model.risk_model_output.probability_of_grounding_in_pto)
+print(risk_model.risk_model_output.probability_of_grounding_in_mec)
+print(risk_model.risk_model_output.probability_of_grounding_in_pti)
 plt.show()

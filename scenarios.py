@@ -1,4 +1,5 @@
 from typing import NamedTuple, List
+from xmlrpc.client import Boolean
 import numpy as np
 import scipy.stats
 
@@ -53,24 +54,46 @@ class StartupEventSequence:
         self.probability_of_restoration_sequence = self.probability_calculation()
 
 
+class PathElement:
+    def __init__(self, event: StartUpEvent, occurs: Boolean) -> None:
+        self.event = event
+        self.occurs = occurs
+
+    def update_probability(self, time):
+        self.event.update_probability(time=time)
+
+
+class EventTreePath:
+    def __init__(self, path: List[PathElement]) -> None:
+        self.path = path
+        self.path_probability = 1
+
+    def update_path_probability(self, new_available_time) -> None:
+        path_probability = 1
+        for path_element in self.path:
+            path_element.update_probability(time=new_available_time)
+            if path_element.occurs:
+                path_probability = path_probability * path_element.event.probability
+            else:
+                path_probability = path_probability * (1 - path_element.event.probability)
+        self.path_probability = path_probability
+
+
 class PowerRestorationEventTree:
-    def __init__(self, startup_event_sequences: List[StartupEventSequence]):
-        self.startup_event_sequences = startup_event_sequences
-        self.probability = self.probability_calculation()
+    def __init__(self, success_paths: List[EventTreePath]):
+        self.success_paths = success_paths
+        self.probability = 1
 
-    def update_startup_sequences(self, new_available_time):
-        for sequence in self.startup_event_sequences:
-            sequence.update_probability(new_available_time)
+    def _update_success_paths(self, new_available_time):
+        for path in self.success_paths:
+            path.update_path_probability(new_available_time)
 
-    def probability_calculation(self):
-        probability_of_no_success = 1
-        for sequence in self.startup_event_sequences:
-            probability_of_no_success = probability_of_no_success * (1 - sequence.probability_of_restoration_sequence)
-        return 1 - probability_of_no_success
-
-    def update_probability(self, new_available_time):
-        self.update_startup_sequences(new_available_time)
-        self.probability = self.probability_calculation()
+    def probability_of_success(self, new_available_time) -> float:
+        probability_of_success = 0
+        self._update_success_paths(new_available_time=new_available_time)
+        for path in self.success_paths:
+            probability_of_success = probability_of_success + path.path_probability
+        return probability_of_success
 
 
 class TriggeringEvent:
@@ -101,7 +124,7 @@ class Scenario:
         self.restoration_scenario = restoration_scenario
 
     def update_scenairo_probabilities(self, available_time):
-        self.restoration_scenario.update_probability(new_available_time=available_time)
+        self.restoration_scenario.probability_of_success(new_available_time=available_time)
 
 
 class MachinerySystemOperatingMode:
@@ -116,7 +139,7 @@ class MachinerySystemOperatingMode:
             prod = prod * 1 - prob_of_grounding_given_loss * s.loss_scenario.probability
         return 1 - prod
 
-    def update_scenarios(self, available_time, time_interval):
+    def update_scenarios(self, available_time):
         for s in self.scenarios:
             s.restoration_scenario.update_probability(available_time)
 
