@@ -8,7 +8,8 @@ from typing import NamedTuple, List
 
 import scenarios
 from ship_in_transit_simulator.models import DriftSimulationConfiguration, \
-    EnvironmentConfiguration, ShipModelWithoutPropulsion, ShipConfiguration
+    EnvironmentConfiguration, ShipModelWithoutPropulsion, ShipConfiguration, \
+        StaticObstacle
 
 
 class ENC:  # Temporary class (placeholder for real ENC-class)
@@ -87,7 +88,7 @@ class GroundingRiskModel:
                  ttg_sim_config: ShipConfiguration,
                  sim_config: DriftSimulationConfiguration,
                  env_config: EnvironmentConfiguration,
-                 environment: ENC,
+                 environment: List[StaticObstacle],
                  scenario_params: ScenarioAnalysisParameters):
         self.max_simulation_time = risk_model_config.max_drift_time_s
         self.risk_time_interval = risk_model_config.risk_time_interval
@@ -134,7 +135,7 @@ class GroundingRiskModel:
         loss_of_main_engine = scenarios.LossOfPropulsionScenario([main_engine_stops])
         loss_of_both_gensets = scenarios.LossOfPropulsionScenario([genset_one_stops, genset_two_stops])
         loss_of_shaft_gen = scenarios.LossOfPropulsionScenario([shaft_gen_stops])
-
+ 
         start_main_engine_params = scenarios.StartUpEventParameters(
             mean_time_to_restart_s=self.scenario_params.main_engine_mean_start_time,
             standard_deviation_time_to_restart=self.scenario_params.main_engine_start_time_std,
@@ -219,7 +220,8 @@ class GroundingRiskModel:
                     scenarios.PathElement(event=start_genset_two, occurs=True),
                     scenarios.PathElement(event=start_hsg_as_motor, occurs=True),
                 ])
-            ]
+            ],
+            time_to_grounding=available_recovery_time
         )
         restore_from_loss_of_main_engine_in_mec = scenarios.PowerRestorationEventTree(
             success_paths=[
@@ -230,7 +232,8 @@ class GroundingRiskModel:
                     scenarios.PathElement(event=restart_main_engine, occurs=False),
                     scenarios.PathElement(event=start_hsg_as_motor, occurs=True),
                 ])
-            ]
+            ],
+            time_to_grounding=available_recovery_time
         )
         restore_from_loss_of_both_gensets_in_pti = scenarios.PowerRestorationEventTree(
             success_paths=[
@@ -246,7 +249,8 @@ class GroundingRiskModel:
                     scenarios.PathElement(event=restart_genset_one, occurs=False),
                     scenarios.PathElement(event=restart_genset_one, occurs=True),
                 ])
-            ]
+            ],
+            time_to_grounding=available_recovery_time
         )
         restore_from_loss_of_hsg_in_pti = scenarios.PowerRestorationEventTree(
             success_paths=[
@@ -257,7 +261,8 @@ class GroundingRiskModel:
                     scenarios.PathElement(event=start_main_engine, occurs=False),
                     scenarios.PathElement(event=restart_hsg_as_motor, occurs=True),
                 ])
-            ]
+            ],
+            time_to_grounding=available_recovery_time
         )
 
         loss_of_main_engine_in_pto = scenarios.Scenario(
@@ -290,7 +295,7 @@ class TimeToGroundingSimulator:
     '''
 
     def __init__(self, initial_states: MotionStateInput,
-                 environment: ENC,
+                 environment: List[StaticObstacle],
                  max_simulation_time: float,
                  ship_config: ShipConfiguration,
                  simulation_config: DriftSimulationConfiguration,
@@ -341,12 +346,12 @@ class TimeToGroundingSimulator:
         time_to_grounding = self.ship_model.int.time
         return time_to_grounding, consequence_of_grounding
 
-    @staticmethod
-    def check_if_grounded(x, y):
-        if abs(x) >= 200 or abs(y) >= 200:
-            return True
-        else:
-            return False
+    def check_if_grounded(self, ship_north_position_m, ship_east_positon_m):
+        for obstacle in self.environment:
+            distance = obstacle.distance(ship_north_position_m, ship_east_positon_m)
+            if abs(distance) <= 50:
+                return True
+        return False
 
 
 class AccumulatedRiskInPredictionHorizon:

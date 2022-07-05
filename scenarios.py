@@ -80,9 +80,9 @@ class EventTreePath:
 
 
 class PowerRestorationEventTree:
-    def __init__(self, success_paths: List[EventTreePath]):
+    def __init__(self, success_paths: List[EventTreePath], time_to_grounding):
         self.success_paths = success_paths
-        self.probability = 1
+        self.probability = self.probability_of_success(new_available_time=time_to_grounding)
 
     def _update_success_paths(self, new_available_time):
         for path in self.success_paths:
@@ -136,13 +136,12 @@ class MachinerySystemOperatingMode:
         prod = 1
         for s in self.scenarios:
             prob_of_grounding_given_loss = 1 - s.restoration_scenario.probability
-            prod = prod * 1 - prob_of_grounding_given_loss * s.loss_scenario.probability
+            prod = prod - prob_of_grounding_given_loss * s.loss_scenario.probability
         return 1 - prod
 
     def update_scenarios(self, available_time):
         for s in self.scenarios:
-            s.restoration_scenario.update_probability(available_time)
-
+            s.update_scenairo_probabilities(available_time=available_time)
     def update_probability(self, available_time, time_interval):
         self.update_scenarios(available_time, time_interval)
         self.probability_of_grounding = self.probability_calculation()
