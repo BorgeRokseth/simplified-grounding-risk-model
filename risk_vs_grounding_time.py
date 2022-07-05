@@ -1,4 +1,4 @@
-from risk_model import GroundingRiskModel, ScenarioAnalysisParameters, RiskModelConfiguration
+from risk_model import GroundingRiskModel, ScenarioAnalysisParameters, RiskModelConfiguration, CaseStudyScenario
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -158,91 +158,26 @@ probability_of_grounding_in_pti = []
 risk_model_interval = 0
 risk_time = []
 
-while ship_model.int.time <= ship_model.int.sim_time:
-    desired_speed_m_per_sec = 7
-    rudder_angle, psi_d = ship_model.rudderang_from_route()
-    desired_heading.append(psi_d*180/np.pi)
-    rudder_angles.append(rudder_angle)
-    engine_load = ship_model.loadperc_from_speedref(
-        speed_ref=desired_speed_m_per_sec)
-
-    ship_model.update_differentials(engine_load, rudder_angle)
-    ship_model.integrate_differentials()
-    ship_model.store_simulation_data(load_perc=engine_load)
-    # Make a drawing of the ship from above every 20 second
-    if time_since_last_ship_drawing > 30:
-        ship_model.ship_snap_shot()
-        time_since_last_ship_drawing = 0
-    time_since_last_ship_drawing += ship_model.int.dt
-
-    
-    if risk_model_interval > 5:
-        drifting_sim_setup = DriftSimulationConfiguration(
-            initial_north_position_m=ship_model.n,
-            initial_east_position_m=ship_model.e,
-            initial_yaw_angle_rad=ship_model.psi,
-            initial_forward_speed_m_per_s=ship_model.u,
-            initial_sideways_speed_m_per_s=ship_model.v,
-            initial_yaw_rate_rad_per_s=ship_model.r,
-            integration_step=0.5,
-            simulation_time=max_sim_time
-        )
-        risk_model.append(
-            GroundingRiskModel(
-            risk_model_config=risk_configuration,
-            env_config=env_forces_setup,
-            environment=[obstacle, secondary_obstacle, third_obstacle],
-            scenario_params=scenario_analysis_parameters,
-            sim_config=drifting_sim_setup,
-            ttg_sim_config=ship_config
-            )
-        )
-        risk_model_interval = 0
-        risk_output = risk_model[-1].calculate_risk_output()
-        probability_of_grounding_in_pto.append(risk_model[-1].risk_model_output.probability_of_grounding_in_pto)
-        probability_of_grounding_in_mec.append(risk_model[-1].risk_model_output.probability_of_grounding_in_mec)
-        probability_of_grounding_in_pti.append(risk_model[-1].risk_model_output.probability_of_grounding_in_pti)
-        risk_time.append(ship_model.int.time)
-    else:
-        risk_model_interval += ship_model.int.dt
+available_time_array = []
+risk_in_pto_array = []
+risk_in_mec_array = []
+risk_in_pti_array = []
+for available_time in range(1,400):
+    scenario = CaseStudyScenario(
+        available_recovery_time=available_time,
+        risk_time_interval=time_interval,
+        scenario_parameters=scenario_analysis_parameters
+    )
+    grounding_scenarios = scenario.scenario_probabilities()
+    available_time_array.append(available_time)
+    risk_in_pto_array.append(grounding_scenarios.pto_mode_scenarios.probability_of_grounding)
+    risk_in_mec_array.append(grounding_scenarios.mec_mode_scenarios.probability_of_grounding)
+    risk_in_pti_array.append(grounding_scenarios.pti_mode_scenarios.probability_of_grounding)
 
 
-    ship_model.int.next_time()
-
-# Store the simulation results in a pandas dataframe
-results = pd.DataFrame().from_dict(ship_model.simulation_results)
-risk_model_results = []
-for risk_model_instance in risk_model:
-    risk_model_results.append(pd.DataFrame().from_dict(risk_model_instance.ttg_simulator.ship_model.simulation_results))
-
-# Example on how a map-view can be generated
-map_fig, map_ax = plt.subplots()
-map_ax.plot(results['east position [m]'], results['north position [m]'])
-for drift_off in risk_model_results:
-    map_ax.plot(drift_off["east position [m]"], drift_off["north position [m]"], color="red")
-
-map_ax.scatter(ship_model.navigate.east, ship_model.navigate.north,
-               marker='x', color='green')  # Plot the waypoints
-for x, y in zip(ship_model.ship_drawings[1], ship_model.ship_drawings[0]):
-    map_ax.plot(x, y, color='black')
-
-obstacle.plot_obst(ax=map_ax)
-secondary_obstacle.plot_obst(ax=map_ax)
-third_obstacle.plot_obst(ax=map_ax)
-
-heading_fig, heading_ax = plt.subplots()
-heading_ax.plot(results["time [s]"], desired_heading, label="desired")
-heading_ax.plot(results["time [s]"], results["yaw angle [deg]"])
-heading_ax.legend()
-
-rudder_fig, rudder_ax = plt.subplots()
-rudder_ax.plot(results["time [s]"], rudder_angles, label="rudder")
-rudder_ax.legend()
-
-map_ax.set_aspect('equal')
-
-risk_fig, risk_ax = plt.subplots()
-risk_ax.plot(risk_time, probability_of_grounding_in_pto, label="PTO")
-risk_ax.plot(risk_time, probability_of_grounding_in_mec, label="MEC")
-risk_ax.plot(risk_time, probability_of_grounding_in_pti, label="PTI")
+fig, ax = plt.subplots()
+ax.plot(available_time_array, risk_in_pto_array, label="PTO")
+ax.plot(available_time_array, risk_in_mec_array, label="MEC")
+ax.plot(available_time_array, risk_in_pti_array, label="PTI")
+ax.legend()
 plt.show()

@@ -123,6 +123,17 @@ class GroundingRiskModel:
         )
 
     def scenario_analysis(self, available_recovery_time: float):
+        scenario = CaseStudyScenario(
+            available_recovery_time=available_recovery_time, 
+            risk_time_interval=self.risk_time_interval,
+            scenario_parameters=self.scenario_params
+            )
+        return scenario.scenario_probabilities()
+
+class CaseStudyScenario:
+    def __init__(self, available_recovery_time: float, risk_time_interval: float, scenario_parameters: ScenarioAnalysisParameters) -> None:
+        self.scenario_params = scenario_parameters
+        self.risk_time_interval = risk_time_interval
         main_engine_stops = scenarios.TriggeringEvent(rate_of_occurrence=self.scenario_params.main_engine_failure_rate,
                                                       time_interval=self.risk_time_interval)
         genset_one_stops = scenarios.TriggeringEvent(rate_of_occurrence=self.scenario_params.genset_one_failure_rate,
@@ -265,27 +276,29 @@ class GroundingRiskModel:
             time_to_grounding=available_recovery_time
         )
 
-        loss_of_main_engine_in_pto = scenarios.Scenario(
+        self.loss_of_main_engine_in_pto = scenarios.Scenario(
             loss_scenario=loss_of_main_engine,
             restoration_scenario=restore_from_loss_of_main_engine_in_pto
         )
-        loss_of_main_engine_in_mec = scenarios.Scenario(
+        self.loss_of_main_engine_in_mec = scenarios.Scenario(
             loss_scenario=loss_of_main_engine,
             restoration_scenario=restore_from_loss_of_main_engine_in_mec
         )
-        loss_of_both_gensets_in_pti = scenarios.Scenario(
+        self.loss_of_both_gensets_in_pti = scenarios.Scenario(
             loss_scenario=loss_of_both_gensets,
             restoration_scenario=restore_from_loss_of_both_gensets_in_pti
         )
-        loss_of_hsg_in_pti = scenarios.Scenario(
+        self.loss_of_hsg_in_pti = scenarios.Scenario(
             loss_scenario=loss_of_shaft_gen,
             restoration_scenario=restore_from_loss_of_hsg_in_pti
         )
+    
+    def scenario_probabilities(self):
         return ScenarioProbabilitiesOutput(
-            pto_mode_scenarios=scenarios.MachinerySystemOperatingMode(possible_scenarios=[loss_of_main_engine_in_pto]),
-            mec_mode_scenarios=scenarios.MachinerySystemOperatingMode(possible_scenarios=[loss_of_main_engine_in_mec]),
-            pti_mode_scenarios=scenarios.MachinerySystemOperatingMode(possible_scenarios=[loss_of_both_gensets_in_pti,
-                                                                                          loss_of_hsg_in_pti])
+            pto_mode_scenarios=scenarios.MachinerySystemOperatingMode(possible_scenarios=[self.loss_of_main_engine_in_pto]),
+            mec_mode_scenarios=scenarios.MachinerySystemOperatingMode(possible_scenarios=[self.loss_of_main_engine_in_mec]),
+            pti_mode_scenarios=scenarios.MachinerySystemOperatingMode(possible_scenarios=[self.loss_of_both_gensets_in_pti,
+                                                                                          self.loss_of_hsg_in_pti])
         )
 
 
