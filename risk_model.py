@@ -2,12 +2,13 @@
     Provides classes to estimate drifting grounding risk either for a small time interval or a
     prediction horizon (a set of adjoining small time intervals).
 """
-
+import numpy as np
 from tkinter import E
 from typing import NamedTuple, List
+import shapely.geometry as geo
 
 import scenarios
-from ship_in_transit_simulator.models import DriftSimulationConfiguration, \
+from ship_in_transit_simulator.models import ShipModelWithoutPropulsion, \
     EnvironmentConfiguration, ShipModelWithoutPropulsion, ShipConfiguration, \
         StaticObstacle
 
@@ -29,6 +30,13 @@ class MotionStateInput(NamedTuple):
 class RiskModelConfiguration(NamedTuple):
     max_drift_time_s: float
     risk_time_interval: float
+
+
+class ShipPose:
+    def __init__(self, north, east, heading_deg):
+        self.north = north
+        self.east = east
+        self.heading_deg = heading_deg
 
 
 class ScenarioAnalysisParameters(NamedTuple):
@@ -86,9 +94,9 @@ class RiskModelOutput(NamedTuple):
 class GroundingRiskModel:
     def __init__(self, risk_model_config: RiskModelConfiguration,
                  ttg_sim_config: ShipConfiguration,
-                 sim_config: DriftSimulationConfiguration,
+                 sim_config: ShipModelWithoutPropulsion,
                  env_config: EnvironmentConfiguration,
-                 environment: List[StaticObstacle],
+                 environment: geo.multipolygon.MultiPolygon,
                  scenario_params: ScenarioAnalysisParameters):
         self.max_simulation_time = risk_model_config.max_drift_time_s
         self.risk_time_interval = risk_model_config.risk_time_interval
@@ -308,10 +316,10 @@ class TimeToGroundingSimulator:
     '''
 
     def __init__(self, initial_states: MotionStateInput,
-                 environment: List[StaticObstacle],
+                 environment: geo.multipolygon.MultiPolygon,
                  max_simulation_time: float,
                  ship_config: ShipConfiguration,
-                 simulation_config: DriftSimulationConfiguration,
+                 simulation_config: ShipModelWithoutPropulsion,
                  environment_config: EnvironmentConfiguration):
         ''' Set up simulation.
 
@@ -326,6 +334,7 @@ class TimeToGroundingSimulator:
         self.ship_config = ship_config
         self.simulation_config = simulation_config
         self.environment_config = environment_config
+        self.drifting_ship_positions = []
         self.ship_model = ShipModelWithoutPropulsion(ship_config=self.ship_config,
                                                      environment_config=self.environment_config,
                                                      simulation_config=self.simulation_config)
@@ -343,27 +352,31 @@ class TimeToGroundingSimulator:
             - consequence_of_grounding (float): The cost of the impact.
         '''
         consequence_of_grounding = 2000
-        self.ship_model.set_north_pos(self.initial_states.north_position)
-        self.ship_model.set_east_pos(self.initial_states.east_position)
-        self.ship_model.set_yaw_angle(self.initial_states.yaw_angle_rad)
-        self.ship_model.set_surge_speed(self.initial_states.surge_speed)
-        self.ship_model.set_sway_speed(self.initial_states.sway_speed)
-        self.ship_model.set_yaw_rate(self.initial_states.yaw_rate)
+        # Necessary to set initial states?
         grounded = False
+        ship_pose_interval = 25
+        time_since_last_ship_pose = 0
         while self.ship_model.int.time <= self.ship_model.int.sim_time and not grounded:
             self.ship_model.update_differentials()
             self.ship_model.integrate_differentials()
             self.ship_model.store_simulation_data()
+            if time_since_last_ship_pose >= ship_pose_interval:
+                self.drifting_ship_positions.append(
+                    ShipPose(north=self.ship_model.north, east=self.ship_model.east, heading_deg=self.ship_model.yaw_angle*180/np.pi)
+                    )
+                time_since_last_ship_pose = 0
             self.ship_model.int.next_time()
-            grounded = self.check_if_grounded(self.ship_model.n, self.ship_model.e)
+            time_since_last_ship_pose += self.ship_model.int.dt
+            grounded = self.check_if_grounded(self.ship_model.north, self.ship_model.east)
         time_to_grounding = self.ship_model.int.time
         return time_to_grounding, consequence_of_grounding
 
     def check_if_grounded(self, ship_north_position_m, ship_east_positon_m):
-        for obstacle in self.environment:
-            distance = obstacle.distance(ship_north_position_m, ship_east_positon_m)
-            if abs(distance) <= 50:
-                return True
+        ship_center_point = geo.Point(ship_east_positon_m, ship_north_position_m)
+        
+        distance = ship_center_point.distance(self.environment)
+        if abs(distance) <= 50:
+            return True
         return False
 
 

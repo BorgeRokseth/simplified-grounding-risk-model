@@ -3,10 +3,10 @@ from risk_model import GroundingRiskModel, ScenarioAnalysisParameters, RiskModel
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from ship_in_transit_simulator.models import DriftSimulationConfiguration, \
-    EnvironmentConfiguration, MachineryMode, ShipConfiguration, SimplifiedPropulsionSimulationConfiguration,  \
+from ship_in_transit_simulator.models import  \
+    EnvironmentConfiguration, MachineryMode, ShipConfiguration,  \
     ShipModelSimplifiedPropulsion, SimplifiedPropulsionMachinerySystemConfiguration, \
-    MachineryModeParams, MachineryModes, StaticObstacle
+    MachineryModeParams, MachineryModes, SimulationConfiguration, SpecificFuelConsumptionBaudouin6M26Dot3, SpecificFuelConsumptionWartila6L26, StaticObstacle
 
 # Actual ship and sailing environment setup
 main_engine_capacity = 2160e3
@@ -19,21 +19,21 @@ max_sim_time = 800
 time_interval = 10
 
 ship_config = ShipConfiguration(
-    coefficient_of_deadweight_to_displacement=0.7,
-    bunkers=200000,
-    ballast=200000,
-    length_of_ship=80,
-    width_of_ship=16,
-    added_mass_coefficient_in_surge=0.4,
-    added_mass_coefficient_in_sway=0.4,
-    added_mass_coefficient_in_yaw=0.4,
-    dead_weight_tonnage=3850000,
-    mass_over_linear_friction_coefficient_in_surge=130,
-    mass_over_linear_friction_coefficient_in_sway=18,
-    mass_over_linear_friction_coefficient_in_yaw=90,
-    nonlinear_friction_coefficient__in_surge=2400,
-    nonlinear_friction_coefficient__in_sway=4000,
-    nonlinear_friction_coefficient__in_yaw=400
+        coefficient_of_deadweight_to_displacement=0.7,
+        bunkers=200000,
+        ballast=200000,
+        length_of_ship=80,
+        width_of_ship=16,
+        added_mass_coefficient_in_surge=0.4,
+        added_mass_coefficient_in_sway=0.4,
+        added_mass_coefficient_in_yaw=0.4,
+        dead_weight_tonnage=3850000,
+        mass_over_linear_friction_coefficient_in_surge=130,
+        mass_over_linear_friction_coefficient_in_sway=18,
+        mass_over_linear_friction_coefficient_in_yaw=90,
+        nonlinear_friction_coefficient__in_surge=2400,
+        nonlinear_friction_coefficient__in_sway=4000,
+        nonlinear_friction_coefficient__in_yaw=400
 )
 env_forces_setup = EnvironmentConfiguration(
     current_velocity_component_from_north=0,
@@ -64,35 +64,38 @@ pto_mode = MachineryMode(params=pti_params)
 mec_mode = MachineryMode(params=mec_params)
 pti_mode = MachineryMode(pti_params)
 
+fuel_curves_me = SpecificFuelConsumptionWartila6L26()
+fuel_curves_dg = SpecificFuelConsumptionBaudouin6M26Dot3()
 
 machinery_config = SimplifiedPropulsionMachinerySystemConfiguration(
-    hotel_load=200e3,
-    machinery_modes=MachineryModes([pto_mode, mec_mode, pti_mode]),
-    thrust_force_dynamic_time_constant=15,
-    rudder_angle_to_sway_force_coefficient=50e3,
-    rudder_angle_to_yaw_force_coefficient=1000e3,
-    max_rudder_angle_degrees=30
-)
+        hotel_load=200e3,
+        machinery_modes=MachineryModes([pto_mode, mec_mode, pti_mode]),
+        machinery_operating_mode=1,
+        specific_fuel_consumption_coefficients_me=fuel_curves_me.fuel_consumption_coefficients(),
+        specific_fuel_consumption_coefficients_dg=fuel_curves_dg.fuel_consumption_coefficients(),
+        thrust_force_dynamic_time_constant=15,
+        rudder_angle_to_sway_force_coefficient=50e3,
+        rudder_angle_to_yaw_force_coefficient=1000e3,
+        max_rudder_angle_degrees=30
+    )
 
-simulation_setup = SimplifiedPropulsionSimulationConfiguration(
-    route_name="/Users/borgerokseth/Documents/source/drifting-grounding-risk-model/experiement_route.txt",
-    initial_north_position_m=0,
-    initial_east_position_m=0,
-    initial_forward_speed_m_per_s=7,
-    initial_sideways_speed_m_per_s=0,
-    initial_thrust_force=0,
-    initial_yaw_angle_rad=45*np.pi/180,
-    initial_yaw_rate_rad_per_s=0,
-    machinery_system_operating_mode=1,
-    integration_step=0.3,
-    simulation_time=600
-)
+simulation_setup = SimulationConfiguration(
+        initial_north_position_m=7104389.06,
+        initial_east_position_m=190165.4,
+        initial_forward_speed_m_per_s=7,
+        initial_sideways_speed_m_per_s=0,
+        initial_yaw_angle_rad=-130*np.pi/180,
+        initial_yaw_rate_rad_per_s=0,
+        integration_step=0.3,
+        simulation_time=max_sim_time
+    )
+
 
 ship_model = ShipModelSimplifiedPropulsion(
-    ship_config=ship_config,
-    machinery_config=machinery_config,
-    environment_config=env_forces_setup,
-    simulation_config=simulation_setup
+        ship_config=ship_config,
+        machinery_config=machinery_config,
+        environment_config=env_forces_setup,
+        simulation_config=simulation_setup
 )
 
 obstacle = StaticObstacle(n_pos=1500, e_pos=1600, radius=250)
