@@ -8,14 +8,8 @@ from typing import NamedTuple, List
 import shapely.geometry as geo
 
 import scenarios
-from ship_in_transit_simulator.models import ShipModelWithoutPropulsion, \
-    EnvironmentConfiguration, ShipModelWithoutPropulsion, ShipConfiguration, \
-        StaticObstacle
-
-
-class ENC:  # Temporary class (placeholder for real ENC-class)
-    def __init__(self):
-        self.x = 200
+from ship_in_transit_simulator.models import  \
+    EnvironmentConfiguration, ShipModelWithoutPropulsion, ShipConfiguration, SimulationConfiguration
 
 
 class MotionStateInput(NamedTuple):
@@ -41,60 +35,16 @@ class ShipPose:
 
 class ScenarioAnalysisParameters(NamedTuple):
     main_engine_failure_rate: float
-    main_engine_mean_start_time: float
-    main_engine_start_time_std: float
-    main_engine_start_time_shift: float
-    main_engine_nominal_start_prob: float
     main_engine_mean_restart_time: float
     main_engine_restart_time_std: float
     main_engine_restart_time_shift: float
     main_engine_nominal_restart_prob: float
-    genset_one_failure_rate: float
-    genset_one_mean_start_time: float
-    genset_one_start_time_std: float
-    genset_one_start_time_shift: float
-    genset_one_nominal_start_prob: float
-    genset_one_mean_restart_time: float
-    genset_one_restart_time_std: float
-    genset_one_restart_time_shift: float
-    genset_one_nominal_restart_prob: float
-    genset_two_failure_rate: float
-    genset_two_mean_start_time: float
-    genset_two_start_time_std: float
-    genset_two_start_time_shift: float
-    genset_two_nominal_start_prob: float
-    genset_two_mean_restart_time: float
-    genset_two_restart_time_std: float
-    genset_two_restart_time_shift: float
-    genset_two_nominal_restart_prob: float
-    hsg_failure_rate: float
-    hsg_mean_start_time: float
-    hsg_start_time_std: float
-    hsg_start_time_shift: float
-    hsg_nominal_start_prob: float
-    hsg_mean_restart_time: float
-    hsg_restart_time_std: float
-    hsg_restart_time_shift: float
-    hsg_nominal_restart_prob: float
-
-
-class ScenarioProbabilitiesOutput(NamedTuple):
-    pto_mode_scenarios: scenarios.MachinerySystemOperatingMode
-    mec_mode_scenarios: scenarios.MachinerySystemOperatingMode
-    pti_mode_scenarios: scenarios.MachinerySystemOperatingMode
-
-
-class RiskModelOutput(NamedTuple):
-    probability_of_grounding_in_pto: float
-    probability_of_grounding_in_mec: float
-    probability_of_grounding_in_pti: float
-    consequence_of_grounding: float
 
 
 class GroundingRiskModel:
     def __init__(self, risk_model_config: RiskModelConfiguration,
                  ttg_sim_config: ShipConfiguration,
-                 sim_config: ShipModelWithoutPropulsion,
+                 sim_config: SimulationConfiguration,
                  env_config: EnvironmentConfiguration,
                  environment: geo.multipolygon.MultiPolygon,
                  scenario_params: ScenarioAnalysisParameters):
@@ -121,48 +71,31 @@ class GroundingRiskModel:
         self.risk_model_output = self.calculate_risk_output()
 
     def calculate_risk_output(self):
-        time_to_grounding, consequence_of_grounding = self.ttg_simulator.time_to_grounding()
-        scenario_analysis_output = self.scenario_analysis(available_recovery_time=time_to_grounding)
-        return RiskModelOutput(
-            probability_of_grounding_in_pto=scenario_analysis_output.pto_mode_scenarios.probability_of_grounding,
-            probability_of_grounding_in_mec=scenario_analysis_output.mec_mode_scenarios.probability_of_grounding,
-            probability_of_grounding_in_pti=scenario_analysis_output.pti_mode_scenarios.probability_of_grounding,
-            consequence_of_grounding=consequence_of_grounding
-        )
+        time_to_grounding = self.ttg_simulator.time_to_grounding()
+        return self.scenario_analysis(available_recovery_time=time_to_grounding)
+
 
     def scenario_analysis(self, available_recovery_time: float):
-        scenario = CaseStudyScenario(
+        return LossOfMainEngineScenario(
             available_recovery_time=available_recovery_time, 
             risk_time_interval=self.risk_time_interval,
             scenario_parameters=self.scenario_params
-            )
-        return scenario.scenario_probabilities()
+            ).scenario_probabilities()
 
-class CaseStudyScenario:
-    def __init__(self, available_recovery_time: float, risk_time_interval: float, scenario_parameters: ScenarioAnalysisParameters) -> None:
+
+class LossOfMainEngineScenario:
+    def __init__(
+            self,
+            available_recovery_time: float,
+            risk_time_interval: float,
+            scenario_parameters: ScenarioAnalysisParameters
+    ) -> None:
         self.scenario_params = scenario_parameters
         self.risk_time_interval = risk_time_interval
         main_engine_stops = scenarios.TriggeringEvent(rate_of_occurrence=self.scenario_params.main_engine_failure_rate,
                                                       time_interval=self.risk_time_interval)
-        genset_one_stops = scenarios.TriggeringEvent(rate_of_occurrence=self.scenario_params.genset_one_failure_rate,
-                                                     time_interval=self.risk_time_interval)
-        genset_two_stops = scenarios.TriggeringEvent(rate_of_occurrence=self.scenario_params.genset_two_failure_rate,
-                                                     time_interval=self.risk_time_interval)
-        shaft_gen_stops = scenarios.TriggeringEvent(rate_of_occurrence=self.scenario_params.hsg_failure_rate,
-                                                    time_interval=self.risk_time_interval)
-
         loss_of_main_engine = scenarios.LossOfPropulsionScenario([main_engine_stops])
-        loss_of_both_gensets = scenarios.LossOfPropulsionScenario([genset_one_stops, genset_two_stops])
-        loss_of_shaft_gen = scenarios.LossOfPropulsionScenario([shaft_gen_stops])
- 
-        start_main_engine_params = scenarios.StartUpEventParameters(
-            mean_time_to_restart_s=self.scenario_params.main_engine_mean_start_time,
-            standard_deviation_time_to_restart=self.scenario_params.main_engine_start_time_std,
-            time_shift_time_to_restart=self.scenario_params.main_engine_start_time_shift,
-            nominal_success_probability=self.scenario_params.main_engine_nominal_start_prob
-        )
-        start_main_engine = scenarios.StartUpEvent(parameters=start_main_engine_params,
-                                                   time_available=available_recovery_time)
+
         restart_main_engine_params = scenarios.StartUpEventParameters(
             mean_time_to_restart_s=self.scenario_params.main_engine_mean_restart_time,
             standard_deviation_time_to_restart=self.scenario_params.main_engine_restart_time_std,
@@ -171,143 +104,25 @@ class CaseStudyScenario:
         )
         restart_main_engine = scenarios.StartUpEvent(parameters=restart_main_engine_params,
                                                      time_available=available_recovery_time)
-        start_genset_one_params = scenarios.StartUpEventParameters(
-            mean_time_to_restart_s=self.scenario_params.genset_one_mean_start_time,
-            standard_deviation_time_to_restart=self.scenario_params.genset_one_start_time_std,
-            time_shift_time_to_restart=self.scenario_params.genset_one_start_time_shift,
-            nominal_success_probability=self.scenario_params.genset_one_nominal_start_prob
-        )
-        start_genset_one = scenarios.StartUpEvent(parameters=start_genset_one_params,
-                                                  time_available=available_recovery_time)
-        start_genset_two_params = scenarios.StartUpEventParameters(
-            mean_time_to_restart_s=self.scenario_params.genset_two_mean_start_time,
-            standard_deviation_time_to_restart=self.scenario_params.genset_two_start_time_std,
-            time_shift_time_to_restart=self.scenario_params.genset_two_start_time_shift,
-            nominal_success_probability=self.scenario_params.genset_two_nominal_start_prob
-        )
-        start_genset_two = scenarios.StartUpEvent(parameters=start_genset_two_params,
-                                                  time_available=available_recovery_time)
 
-        restart_genset_one_params = scenarios.StartUpEventParameters(
-            mean_time_to_restart_s=self.scenario_params.genset_one_mean_restart_time,
-            standard_deviation_time_to_restart=self.scenario_params.genset_one_restart_time_std,
-            time_shift_time_to_restart=self.scenario_params.genset_one_restart_time_shift,
-            nominal_success_probability=self.scenario_params.genset_one_nominal_restart_prob
-        )
-        restart_genset_one = scenarios.StartUpEvent(parameters=restart_genset_one_params,
-                                                    time_available=available_recovery_time)
-        restart_genset_two_params = scenarios.StartUpEventParameters(
-            mean_time_to_restart_s=self.scenario_params.genset_two_mean_restart_time,
-            standard_deviation_time_to_restart=self.scenario_params.genset_two_restart_time_std,
-            time_shift_time_to_restart=self.scenario_params.genset_two_restart_time_shift,
-            nominal_success_probability=self.scenario_params.genset_two_nominal_restart_prob
-        )
-        restart_genset_two = scenarios.StartUpEvent(parameters=restart_genset_two_params,
-                                                    time_available=available_recovery_time)
-
-        start_hsg_as_motor_params = scenarios.StartUpEventParameters(
-            mean_time_to_restart_s=self.scenario_params.hsg_mean_start_time,
-            standard_deviation_time_to_restart=self.scenario_params.hsg_start_time_std,
-            time_shift_time_to_restart=self.scenario_params.hsg_start_time_shift,
-            nominal_success_probability=self.scenario_params.hsg_nominal_start_prob
-        )
-        start_hsg_as_motor = scenarios.StartUpEvent(parameters=start_hsg_as_motor_params,
-                                                    time_available=available_recovery_time)
-
-        restart_hsg_as_motor_params = scenarios.StartUpEventParameters(
-            mean_time_to_restart_s=self.scenario_params.hsg_mean_restart_time,
-            standard_deviation_time_to_restart=self.scenario_params.hsg_restart_time_std,
-            time_shift_time_to_restart=self.scenario_params.hsg_restart_time_shift,
-            nominal_success_probability=self.scenario_params.hsg_nominal_restart_prob
-        )
-        restart_hsg_as_motor = scenarios.StartUpEvent(parameters=restart_hsg_as_motor_params,
-                                                      time_available=available_recovery_time)
-
-        restore_from_loss_of_main_engine_in_pto = scenarios.PowerRestorationEventTree(
+        restore_from_loss_of_main_engine = scenarios.PowerRestorationEventTree(
             success_paths=[
-                scenarios.EventTreePath(path=[
-                    scenarios.PathElement(event=restart_main_engine, occurs=True),
-                ]),
-                scenarios.EventTreePath(path=[
-                    scenarios.PathElement(event=restart_main_engine, occurs=False),
-                    scenarios.PathElement(event=start_genset_one, occurs=True),
-                    scenarios.PathElement(event=start_hsg_as_motor, occurs=True),
-                ]),
-                scenarios.EventTreePath(path=[
-                    scenarios.PathElement(event=restart_main_engine, occurs=False),
-                    scenarios.PathElement(event=start_genset_one, occurs=False),
-                    scenarios.PathElement(event=start_genset_two, occurs=True),
-                    scenarios.PathElement(event=start_hsg_as_motor, occurs=True),
-                ])
-            ],
-            time_to_grounding=available_recovery_time
-        )
-        restore_from_loss_of_main_engine_in_mec = scenarios.PowerRestorationEventTree(
-            success_paths=[
-                scenarios.EventTreePath(path=[
-                    scenarios.PathElement(event=restart_main_engine, occurs=True),
-                ]),
-                scenarios.EventTreePath(path=[
-                    scenarios.PathElement(event=restart_main_engine, occurs=False),
-                    scenarios.PathElement(event=start_hsg_as_motor, occurs=True),
-                ])
-            ],
-            time_to_grounding=available_recovery_time
-        )
-        restore_from_loss_of_both_gensets_in_pti = scenarios.PowerRestorationEventTree(
-            success_paths=[
-                scenarios.EventTreePath(path=[
-                    scenarios.PathElement(event=start_main_engine, occurs=True),
-                ]),
-                scenarios.EventTreePath(path=[
-                    scenarios.PathElement(event=start_main_engine, occurs=False),
-                    scenarios.PathElement(event=restart_genset_one, occurs=True),
-                ]),
-                scenarios.EventTreePath(path=[
-                    scenarios.PathElement(event=start_main_engine, occurs=False),
-                    scenarios.PathElement(event=restart_genset_one, occurs=False),
-                    scenarios.PathElement(event=restart_genset_one, occurs=True),
-                ])
-            ],
-            time_to_grounding=available_recovery_time
-        )
-        restore_from_loss_of_hsg_in_pti = scenarios.PowerRestorationEventTree(
-            success_paths=[
-                scenarios.EventTreePath(path=[
-                    scenarios.PathElement(event=start_main_engine, occurs=True),
-                ]),
-                scenarios.EventTreePath(path=[
-                    scenarios.PathElement(event=start_main_engine, occurs=False),
-                    scenarios.PathElement(event=restart_hsg_as_motor, occurs=True),
-                ])
+                scenarios.EventTreePath(
+                    path=[scenarios.PathElement(event=restart_main_engine, occurs=True),]
+                )
             ],
             time_to_grounding=available_recovery_time
         )
 
-        self.loss_of_main_engine_in_pto = scenarios.Scenario(
+        self.loss_of_main_engine = scenarios.Scenario(
             loss_scenario=loss_of_main_engine,
-            restoration_scenario=restore_from_loss_of_main_engine_in_pto
-        )
-        self.loss_of_main_engine_in_mec = scenarios.Scenario(
-            loss_scenario=loss_of_main_engine,
-            restoration_scenario=restore_from_loss_of_main_engine_in_mec
-        )
-        self.loss_of_both_gensets_in_pti = scenarios.Scenario(
-            loss_scenario=loss_of_both_gensets,
-            restoration_scenario=restore_from_loss_of_both_gensets_in_pti
-        )
-        self.loss_of_hsg_in_pti = scenarios.Scenario(
-            loss_scenario=loss_of_shaft_gen,
-            restoration_scenario=restore_from_loss_of_hsg_in_pti
+            restoration_scenario=restore_from_loss_of_main_engine
         )
     
-    def scenario_probabilities(self):
-        return ScenarioProbabilitiesOutput(
-            pto_mode_scenarios=scenarios.MachinerySystemOperatingMode(possible_scenarios=[self.loss_of_main_engine_in_pto]),
-            mec_mode_scenarios=scenarios.MachinerySystemOperatingMode(possible_scenarios=[self.loss_of_main_engine_in_mec]),
-            pti_mode_scenarios=scenarios.MachinerySystemOperatingMode(possible_scenarios=[self.loss_of_both_gensets_in_pti,
-                                                                                          self.loss_of_hsg_in_pti])
-        )
+    def scenario_probabilities(self) -> float:
+        return scenarios.ScenarioProbabilityCalculation(
+            possible_scenarios=[self.loss_of_main_engine]
+        ).probability_of_grounding
 
 
 class TimeToGroundingSimulator:
@@ -319,7 +134,7 @@ class TimeToGroundingSimulator:
                  environment: geo.multipolygon.MultiPolygon,
                  max_simulation_time: float,
                  ship_config: ShipConfiguration,
-                 simulation_config: ShipModelWithoutPropulsion,
+                 simulation_config: SimulationConfiguration,
                  environment_config: EnvironmentConfiguration):
         ''' Set up simulation.
 
@@ -334,7 +149,6 @@ class TimeToGroundingSimulator:
         self.ship_config = ship_config
         self.simulation_config = simulation_config
         self.environment_config = environment_config
-        self.drifting_ship_positions = []
         self.ship_model = ShipModelWithoutPropulsion(ship_config=self.ship_config,
                                                      environment_config=self.environment_config,
                                                      simulation_config=self.simulation_config)
@@ -351,29 +165,18 @@ class TimeToGroundingSimulator:
             - time_to_grounding (float): Number of seconds it takes before the ship grounds
             - consequence_of_grounding (float): The cost of the impact.
         '''
-        consequence_of_grounding = 2000
-        # Necessary to set initial states?
         grounded = False
-        ship_pose_interval = 25
-        time_since_last_ship_pose = 0
         while self.ship_model.int.time <= self.ship_model.int.sim_time and not grounded:
             self.ship_model.update_differentials()
             self.ship_model.integrate_differentials()
             self.ship_model.store_simulation_data()
-            if time_since_last_ship_pose >= ship_pose_interval:
-                self.drifting_ship_positions.append(
-                    ShipPose(north=self.ship_model.north, east=self.ship_model.east, heading_deg=self.ship_model.yaw_angle*180/np.pi)
-                    )
-                time_since_last_ship_pose = 0
             self.ship_model.int.next_time()
-            time_since_last_ship_pose += self.ship_model.int.dt
             grounded = self.check_if_grounded(self.ship_model.north, self.ship_model.east)
         time_to_grounding = self.ship_model.int.time
-        return time_to_grounding, consequence_of_grounding
+        return time_to_grounding
 
-    def check_if_grounded(self, ship_north_position_m, ship_east_positon_m):
-        ship_center_point = geo.Point(ship_east_positon_m, ship_north_position_m)
-        
+    def check_if_grounded(self, ship_north_position_m, ship_east_position_m):
+        ship_center_point = geo.Point(ship_east_position_m, ship_north_position_m)
         distance = ship_center_point.distance(self.environment)
         if abs(distance) <= 50:
             return True
@@ -391,11 +194,11 @@ class AccumulatedRiskInPredictionHorizon:
                  consequence_of_accident_for_each_time_step: List[float]):
         ''' For each small adjoining time interval, calculate:
             - the unconditional probability of the event occurring for each time interval
-            - the unconditional risk ('probability of occurrence' times 'consequence of occurrence'
+            - the unconditional risk ('probability of occurrence' times 'consequence of occurrence')
             - the accumulated (cumulative) probability of the event having occurred in any of the
-                preceding time intervals after each time interval
-            - the risk accumulated so far in the prediction horizon after each time interval
-
+            preceding time intervals after each time interval
+            - the accumulated risk so far in the prediction horizon after each time interval (i.e.
+            the cumulative distribution)
         '''
         # Find unconditional prob of accident for each time step
         self.unconditional_probability_for_each_time_interval = []
@@ -436,7 +239,7 @@ class AccumulatedRiskInPredictionHorizon:
     def unconditional_probability_at_time_step(conditional_probability_this_time_step: float,
                                                probability_of_event_having_occurred: float):
         """ The unconditional probability accounts for the possibility that the
-            event might have occurred already. Thus, the further out out in the prediction
+            event might have occurred already. Thus, the further out in the prediction
             horizon, the smaller the unconditional probability will be (i.e. if it is
             almost certain that the event has already occurred, and it can only occur
             once, it is almost certain not to occur now).

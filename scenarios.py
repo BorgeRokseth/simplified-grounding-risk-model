@@ -123,11 +123,11 @@ class Scenario:
         self.loss_scenario = loss_scenario
         self.restoration_scenario = restoration_scenario
 
-    def update_scenairo_probabilities(self, available_time):
+    def update_scenario_probabilities(self, available_time):
         self.restoration_scenario.probability_of_success(new_available_time=available_time)
 
 
-class MachinerySystemOperatingMode:
+class ScenarioProbabilityCalculation:
     def __init__(self, possible_scenarios: List[Scenario]):
         self.scenarios = possible_scenarios
         self.probability_of_grounding = self.probability_calculation()
@@ -141,7 +141,8 @@ class MachinerySystemOperatingMode:
 
     def update_scenarios(self, available_time):
         for s in self.scenarios:
-            s.update_scenairo_probabilities(available_time=available_time)
+            s.update_scenario_probabilities(available_time=available_time)
+
     def update_probability(self, available_time, time_interval):
         self.update_scenarios(available_time, time_interval)
         self.probability_of_grounding = self.probability_calculation()
