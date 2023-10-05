@@ -4,3 +4,4 @@ venv/
 ship_in_transit_simulator/
 seacharts/
 data/
+*.yml
