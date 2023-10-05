@@ -9,8 +9,7 @@ small time intervals).
 Clone the following repositories: 
 * https://github.com/simbli/seacharts.git
 * https://github.com/BorgeRokseth/ship-in-transit-simulator.git
-
-Then run `pip install requirements.txt`
+and follow the instructions en each repo. Then run `pip install requirements.txt`
 # Licence
 This project is published under the 
 [MIT](https://choosealicense.com/licenses/mit/) 
